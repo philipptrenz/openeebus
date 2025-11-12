@@ -1,0 +1,3 @@
+UseCase
+void Destruct()
+bool IsEntityCompatible(const EntityRemoteObject* remote_entity) const

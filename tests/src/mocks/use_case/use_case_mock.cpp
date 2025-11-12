@@ -1,0 +1,62 @@
+/*
+ * Copyright 2025 NIBE AB
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+/**
+ * @file
+ * @brief Use Case mock implementation
+ */
+
+#include "use_case_mock.h"
+
+#include <gmock/gmock.h>
+
+#include "src/common/eebus_malloc.h"
+#include "src/use_case/api/use_case_interface.h"
+
+static void Destruct(UseCaseObject* self);
+static bool IsEntityCompatible(const UseCaseObject* self, const EntityRemoteObject* remote_entity);
+
+static const UseCaseInterface use_case_methods = {
+    .destruct             = Destruct,
+    .is_entity_compatible = IsEntityCompatible,
+};
+
+static void UseCaseMockConstruct(UseCaseMock* self);
+
+void UseCaseMockConstruct(UseCaseMock* self) {
+  // Override "virtual functions table"
+  USE_CASE_INTERFACE(self) = &use_case_methods;
+}
+
+UseCaseMock* UseCaseMockCreate(void) {
+  UseCaseMock* const mock = (UseCaseMock*)EEBUS_MALLOC(sizeof(UseCaseMock));
+
+  UseCaseMockConstruct(mock);
+
+  mock->gmock = new UseCaseGMock();
+
+  return mock;
+}
+
+void Destruct(UseCaseObject* self) {
+  UseCaseMock* const mock = USE_CASE_MOCK(self);
+  mock->gmock->Destruct(self);
+  delete mock->gmock;
+}
+
+bool IsEntityCompatible(const UseCaseObject* self, const EntityRemoteObject* remote_entity) {
+  UseCaseMock* const mock = USE_CASE_MOCK(self);
+  return mock->gmock->IsEntityCompatible(self, remote_entity);
+}
