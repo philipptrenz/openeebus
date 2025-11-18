@@ -105,17 +105,11 @@ char* StringWithHex(const uint8_t* data, size_t data_len) {
   bool is_started = false;
   size_t j        = 0;
   for (size_t i = 0; i < data_len; ++i) {
-    uint8_t h = (data[i] >> 4) & 0x0F;
-    is_started = is_started || (h != 0);
-    if (is_started) {
-      s[j++] = ((h >= 10) ? 'a' - 10 : '0') + h;
-    }
+    const uint8_t h = (data[i] >> 4) & 0x0F;
+    s[j++] = ((h >= 10) ? 'a' - 10 : '0') + h;
 
-    uint8_t l = data[i] & 0x0F;
-    is_started = is_started || (l != 0);
-    if (is_started) {
-      s[j++] = ((l >= 10) ? 'a' - 10 : '0') + l;
-    }
+    const uint8_t l = data[i] & 0x0F;
+    s[j++] = ((l >= 10) ? 'a' - 10 : '0') + l;
   }
 
   s[j] = '\0';

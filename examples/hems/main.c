@@ -34,7 +34,7 @@ static HemsObject* hems = NULL;
 
 void PrintUsage() {
   printf("General Usage:\n");
-  printf("heat_pump <server_port> <remote_ski> <certificate_file> <private_key_file>\n");
+  printf("hems <server_port> <remote_ski> <certificate_file> <private_key_file>\n");
 }
 
 void GracefulTerminate(int signal) {
