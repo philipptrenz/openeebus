@@ -366,7 +366,7 @@ static bool ShipNodeFindService(ShipNode* self, MdnsEntry* found_entry) {
   return entry_found;
 }
 
-void ShipNodeConnectToService(ShipNode* self, const MdnsEntry* found_entry) {
+static void ShipNodeConnectToService(ShipNode* self, const MdnsEntry* found_entry) {
   if (self->connection_attempt_running) {
     return;
   }
