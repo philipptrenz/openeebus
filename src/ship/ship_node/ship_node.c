@@ -401,7 +401,8 @@ static void ShipNodeConnectToService(ShipNode* self, const MdnsEntry* found_entr
   );
 
   if (self->ship_connection != NULL) {
-    const EebusError err             = SHIP_CONNECTION_START(self->ship_connection, self->websocket_creator);
+    const EebusError err = SHIP_CONNECTION_START(self->ship_connection, self->websocket_creator);
+
     self->connection_attempt_running = (err == kEebusErrorOk);
   }
 
