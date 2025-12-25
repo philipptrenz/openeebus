@@ -32,7 +32,9 @@
 #include "src/spine/model/subscription_management_types.h"
 
 /** Set SENDER_DEBUG 1 to enable debug prints */
+#ifndef SENDER_DEBUG
 #define SENDER_DEBUG 0
+#endif
 
 /** Sender debug printf(), enabled whith SENDER_DEBUG = 1 */
 #if SENDER_DEBUG
