@@ -451,13 +451,48 @@ void MdnsBrowseServicesCallback(
   }
 
   DNSServiceRef service_resolve_ref = NULL;
-  DNSServiceResolve(&service_resolve_ref, 0, iface, name, kShipServiceType, domain, MdnsResolveServiceCallback, mdns);
-  DNSServiceProcessResult(service_resolve_ref);
+  DNSServiceErrorType rerr = DNSServiceResolve(&service_resolve_ref, 0, iface, name, type, domain, MdnsResolveServiceCallback, mdns);
 
-  if (service_resolve_ref != NULL) {
-    DNSServiceRefDeallocate(service_resolve_ref);
-    service_resolve_ref = NULL;
+  if (rerr != kDNSServiceErr_NoError || service_resolve_ref == NULL) {
+    MDNS_DEBUG_PRINTF("DNSServiceResolve(%s) failed: %d\n", name, rerr);
+    MdnsEntryDelete(mdns->entry);
+    mdns->entry = NULL;
+    return;
   }
+
+  // Wait for resolve callback to set mdns->service_resolve_done or time out
+  mdns->done = false;
+  mdns->service_resolve_done = false;
+
+  const int fd = DNSServiceRefSockFD(service_resolve_ref);
+  if (fd >= 0) {
+    for (int tries = 0; tries < 20 && !mdns->done; ++tries) {   // ~2s total
+      fd_set rfds;
+      FD_ZERO(&rfds);
+      FD_SET(fd, &rfds);
+
+      struct timeval tv;
+      tv.tv_sec  = 0;
+      tv.tv_usec = 100000;  // 100 ms
+
+      int sel = select(fd + 1, &rfds, NULL, NULL, &tv);
+      if (sel > 0 && FD_ISSET(fd, &rfds)) {
+        DNSServiceErrorType perr = DNSServiceProcessResult(service_resolve_ref);
+        if (perr != kDNSServiceErr_NoError) {
+          MDNS_DEBUG_PRINTF("DNSServiceProcessResult(resolve) -> %d\n", perr);
+          break;
+        }
+      } else if (sel < 0 && errno != EINTR) {
+        MDNS_DEBUG_PRINTF("select(resolve) -> %d errno=%d %s\n", sel, errno, strerror(errno));
+        break;
+      }
+    }
+  } else {
+    MDNS_DEBUG_PRINTF("DNSServiceRefSockFD(resolve) invalid: %d\n", fd);
+  }
+
+  DNSServiceRefDeallocate(service_resolve_ref);
+  service_resolve_ref = NULL;
 
   if (MdnsEntryIsValid(mdns->entry) && (strcmp(mdns->entry->ski, mdns->ski) != 0)) {
     MDNS_DEBUG_PRINTF("Added entry: %s\n", mdns->entry->name);
