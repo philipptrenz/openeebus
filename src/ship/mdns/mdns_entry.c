@@ -55,7 +55,9 @@
 #include "src/common/struct_util.h"
 
 /** Set MDNS_ENTRY_DEBUG 1 to enable debug prints */
+#ifndef MDNS_ENTRY_DEBUG
 #define MDNS_ENTRY_DEBUG 0
+#endif
 
 /** mDNS Entry debug printf(), enabled whith MDNS_DEBUG = 1 */
 #if MDNS_ENTRY_DEBUG

@@ -25,7 +25,9 @@
 #include "src/ship/model/types.h"
 
 /** Set SHIP_CONNECTION_DEBUG 1 to enable debug prints */
+#ifndef SHIP_CONNECTION_DEBUG
 #define SHIP_CONNECTION_DEBUG 0
+#endif
 
 #ifdef __cplusplus
 extern "C" {

@@ -37,7 +37,9 @@
 #include "src/ship/websocket/websocket_server_creator.h"
 
 /** Set HTTP_SERVER_DEBUG 1 to enable debug prints */
+#ifndef HTTP_SERVER_DEBUG
 #define HTTP_SERVER_DEBUG 0
+#endif
 
 /** Http server debug printf(), enabled whith HTTP_SERVER_DEBUG = 1 */
 #if HTTP_SERVER_DEBUG

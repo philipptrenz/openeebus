@@ -94,7 +94,9 @@
 #include "src/ship/ship_connection/types.h"
 
 /** Set MDNS_DEBUG 1 to enable debug prints */
+#ifndef MDNS_DEBUG
 #define MDNS_DEBUG 0
+#endif
 
 /** mDNS debug printf(), enabled whith MDNS_DEBUG = 1 */
 #if MDNS_DEBUG

@@ -36,7 +36,9 @@
 #include "src/ship/websocket/websocket_client_creator.h"
 
 /** Set SHIP_NODE_DEBUG 1 to enable debug prints */
+#ifndef SHIP_NODE_DEBUG
 #define SHIP_NODE_DEBUG 0
+#endif
 
 /** Ship node debug printf(), enabled whith SHIP_NODE_DEBUG = 1 */
 #if SHIP_NODE_DEBUG
