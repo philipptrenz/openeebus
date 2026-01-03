@@ -32,7 +32,9 @@
 #include "src/ship/tls_certificate/tls_certificate.h"
 
 /** Set TLS_CERTIFICATE_MBEDTLS_DEBUG 1 to enable debug prints */
+#ifndef TLS_CERTIFICATE_MBEDTLS_DEBUG
 #define TLS_CERTIFICATE_MBEDTLS_DEBUG 0
+#endif
 
 /** Tls Certificate mbedTLS debug printf(), enabled whith TLS_CERTIFICATE_MBEDTLS_DEBUG = 1 */
 #if TLS_CERTIFICATE_MBEDTLS_DEBUG

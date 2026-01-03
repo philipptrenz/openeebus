@@ -94,7 +94,9 @@
 #include "src/ship/ship_connection/types.h"
 
 /** Set MDNS_DEBUG 1 to enable debug prints */
+#ifndef MDNS_DEBUG
 #define MDNS_DEBUG 0
+#endif
 
 /** mDNS debug printf(), enabled whith MDNS_DEBUG = 1 */
 #if MDNS_DEBUG
@@ -315,38 +317,30 @@ void Destruct(ShipMdnsObject* self) {
 
 void MdnsProcessResults(Mdns* self) {
   const int dns_sd_fd = DNSServiceRefSockFD(self->dns_service_browser_ref);
-  const int nfds      = dns_sd_fd + 1;
   fd_set readfds;
-  bool stop_handling = false;
 
-  self->done = false;
+  const int total_ms = 2000;
+  const int idle_ms  = 300;
+  int elapsed_ms = 0;
+  int idle_elapsed_ms = 0;
+  bool saw_any = false;
 
-  while (!stop_handling && !self->cancel && !self->done) {
-    // 1. Set up the fd_set as usual here.
+  while (!self->cancel && elapsed_ms < total_ms && idle_elapsed_ms < idle_ms) {
     FD_ZERO(&readfds);
-
-    // 2. Add the fd for our dns_service_browser_ref(s) to the fd_set
     FD_SET(dns_sd_fd, &readfds);
 
-    // 3. Set up the timeout. Note: passing constant to select() directly leads to crash!
-    struct timeval tv = select_timeout;
+    struct timeval tv = { .tv_sec = 0, .tv_usec = 100000 }; // 100ms tick
+    int r = select(dns_sd_fd + 1, &readfds, NULL, NULL, &tv);
 
-    const int result = select(nfds, &readfds, (fd_set*)NULL, (fd_set*)NULL, &tv);
-    if (result > 0) {
-      DNSServiceErrorType err = kDNSServiceErr_NoError;
-      if (FD_ISSET(dns_sd_fd, &readfds)) {
-        err = DNSServiceProcessResult(self->dns_service_browser_ref);
-      }
+    elapsed_ms += 100;
 
-      if (err) {
-        MDNS_DEBUG_PRINTF("DNSServiceProcessResult returned %d\n", err);
-        stop_handling = true;
-      }
-    } else if (result == 0) {
-      stop_handling = true;
+    if (r > 0 && FD_ISSET(dns_sd_fd, &readfds)) {
+      DNSServiceErrorType err = DNSServiceProcessResult(self->dns_service_browser_ref);
+      if (err != kDNSServiceErr_NoError) break;
+      saw_any = true;
+      idle_elapsed_ms = 0;        // reset idle when we got data
     } else {
-      MDNS_DEBUG_PRINTF("select() returned %d errno %d %s\n", result, errno, strerror(errno));
-      stop_handling = (errno != EINTR);
+      if (saw_any) idle_elapsed_ms += 100;
     }
   }
 }
@@ -449,13 +443,48 @@ void MdnsBrowseServicesCallback(
   }
 
   DNSServiceRef service_resolve_ref = NULL;
-  DNSServiceResolve(&service_resolve_ref, 0, iface, name, kShipServiceType, domain, MdnsResolveServiceCallback, mdns);
-  DNSServiceProcessResult(service_resolve_ref);
+  DNSServiceErrorType rerr = DNSServiceResolve(&service_resolve_ref, 0, iface, name, type, domain, MdnsResolveServiceCallback, mdns);
 
-  if (service_resolve_ref != NULL) {
-    DNSServiceRefDeallocate(service_resolve_ref);
-    service_resolve_ref = NULL;
+  if (rerr != kDNSServiceErr_NoError || service_resolve_ref == NULL) {
+    MDNS_DEBUG_PRINTF("DNSServiceResolve(%s) failed: %d\n", name, rerr);
+    MdnsEntryDelete(mdns->entry);
+    mdns->entry = NULL;
+    return;
   }
+
+  // Wait for resolve callback to set mdns->service_resolve_done or time out
+  mdns->done = false;
+  mdns->service_resolve_done = false;
+
+  const int fd = DNSServiceRefSockFD(service_resolve_ref);
+  if (fd >= 0) {
+    for (int tries = 0; tries < 20 && !mdns->done; ++tries) {   // ~3s total
+      fd_set rfds;
+      FD_ZERO(&rfds);
+      FD_SET(fd, &rfds);
+
+      struct timeval tv;
+      tv.tv_sec  = 0;
+      tv.tv_usec = 200000;  // 200 ms
+
+      int sel = select(fd + 1, &rfds, NULL, NULL, &tv);
+      if (sel > 0 && FD_ISSET(fd, &rfds)) {
+        DNSServiceErrorType perr = DNSServiceProcessResult(service_resolve_ref);
+        if (perr != kDNSServiceErr_NoError) {
+          MDNS_DEBUG_PRINTF("DNSServiceProcessResult(resolve) -> %d\n", perr);
+          break;
+        }
+      } else if (sel < 0 && errno != EINTR) {
+        MDNS_DEBUG_PRINTF("select(resolve) -> %d errno=%d %s\n", sel, errno, strerror(errno));
+        break;
+      }
+    }
+  } else {
+    MDNS_DEBUG_PRINTF("DNSServiceRefSockFD(resolve) invalid: %d\n", fd);
+  }
+
+  DNSServiceRefDeallocate(service_resolve_ref);
+  service_resolve_ref = NULL;
 
   if (MdnsEntryIsValid(mdns->entry) && (strcmp(mdns->entry->ski, mdns->ski) != 0)) {
     MDNS_DEBUG_PRINTF("Added entry: %s\n", mdns->entry->name);

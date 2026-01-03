@@ -47,7 +47,9 @@
 #include "src/spine/subscription/subscription_manager.h"
 
 /** Set DEVICE_LOCAL_DEBUG 1 to enable debug prints */
+#ifndef DEVICE_LOCAL_DEBUG
 #define DEVICE_LOCAL_DEBUG 0
+#endif
 
 /** mDNS debug printf(), enabled whith MDNS_DEBUG = 1 */
 #if DEVICE_LOCAL_DEBUG

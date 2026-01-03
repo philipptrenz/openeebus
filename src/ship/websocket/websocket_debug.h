@@ -28,7 +28,9 @@
 /** Set WEBSOCKET_DEBUG 1 to enable debug prints
  *  Set WEBSOCKET_DEBUG 2 to enable extra debug prints
  */
+#ifndef WEBSOCKET_DEBUG
 #define WEBSOCKET_DEBUG 0
+#endif
 
 /**
  * @defgroup WebsocketDebug Websocket debug printf() and hexdump,
