@@ -22,6 +22,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <time.h>
 
@@ -55,9 +56,10 @@ void GracefulTerminate(int signal) {
 /**
  * Publish MPC values:
  * - Scenario 1: total active power + per-phase power (W * 100)
+ * - Scenario 2: energy consumed/produced (Wh * 100)
+ * - Scenario 3: current per-phase (A * 100, per comment in header)
  * - Scenario 4: voltage per-phase (V * 100)
  * - Scenario 5: frequency (Hz * 100)
- * - Scenario 3: current per-phase (A * 100, per comment in header)
  */
 static void PublishMpc(HpsrvObject* hpsrv, int32_t total_w) {
   // ---- Power split across phases (sum == total_w) ----
@@ -84,6 +86,29 @@ static void PublishMpc(HpsrvObject* hpsrv, int32_t total_w) {
 
   (void)HpsrvSetPowerTotal(hpsrv, total_p);
   (void)HpsrvSetPowerPerPhase(hpsrv, a_p, b_p, c_p);
+
+  // ---- Energy consumed/produced ----
+  static int64_t s_energy_consumed_cWh = 0;
+  static int64_t s_energy_produced_cWh = 0;
+  static int64_t s_energy_rem = 0; // in (W*100) "per second" units, divided by 3600
+
+  if (total_w >= 0) {
+    s_energy_rem += (int64_t)total_w * 100;
+    s_energy_consumed_cWh += s_energy_rem / 3600;
+    s_energy_rem %= 3600;
+  } else {
+    // If you ever allow negative power for production, integrate that here.
+    int32_t prod_w = -total_w;
+    s_energy_rem += (int64_t)prod_w * 100;
+    s_energy_produced_cWh += s_energy_rem / 3600;
+    s_energy_rem %= 3600;
+  }
+
+  int32_t e_cons = (s_energy_consumed_cWh > INT32_MAX) ? INT32_MAX : (int32_t)s_energy_consumed_cWh;
+  int32_t e_prod = (s_energy_produced_cWh > INT32_MAX) ? INT32_MAX : (int32_t)s_energy_produced_cWh;
+
+  (void)HpsrvSetEnergyConsumed(hpsrv, e_cons);
+  (void)HpsrvSetEnergyProduced(hpsrv, e_prod);
 
   // ---- Voltage + Frequency (mostly stable, small noise) ----
   // L-N voltages around 230V, add +-2.00V noise
